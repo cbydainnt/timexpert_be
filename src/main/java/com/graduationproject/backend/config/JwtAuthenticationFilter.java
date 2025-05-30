@@ -32,7 +32,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
         // Bỏ qua nếu là các endpoint oauth2/login
-        if (path.startsWith("/oauth2") || path.startsWith("/login/oauth2") || path.startsWith("/auth")) {
+        if (path.startsWith("/oauth2") ||
+                path.startsWith("/login/oauth2") ||
+                path.startsWith("/auth") ||
+                path.equals("/api/users/login") || // Thêm các path permitAll khác nếu cần
+                path.equals("/api/users/register") ||
+                path.startsWith("/api/password") ||
+                path.equals("/api/webhook/dialogflow")) { // Bỏ qua cho Dialogflow webhook
+
             filterChain.doFilter(request, response);
             return;
         }
