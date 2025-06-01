@@ -1,6 +1,7 @@
 // src/main/java/com/graduationproject/backend/config/OAuth2AuthenticationSuccessHandler.java
 package com.graduationproject.backend.config;
 
+import com.graduationproject.backend.entity.User;
 import com.graduationproject.backend.service.UserService;
 import com.graduationproject.backend.util.CustomUserDetails;
 import jakarta.servlet.ServletException;
@@ -44,35 +45,48 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             return;
         }
 
-        Object principal = authentication.getPrincipal();
-        String username = null;
+        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal(); // Principal luôn là OAuth2User
+        String usernameToUseInToken;
 
-        if (principal instanceof CustomUserDetails) {
-            username = ((CustomUserDetails) principal).getUsername();
-        } else if (principal instanceof OAuth2User) {
-            username = ((OAuth2User) principal).getAttribute("email"); // Fallback
-            logger.warn("Principal is default OAuth2User, using email: {}", username);
+        // Kiểm tra xem principal có phải là CustomUserDetails không, nếu vậy thì User entity đã được xử lý
+        if (oauth2User instanceof CustomUserDetails) {
+            CustomUserDetails customUserDetails = (CustomUserDetails) oauth2User;
+            usernameToUseInToken = customUserDetails.getUsername(); // Lấy username từ User entity bên trong
+            logger.info("OAuth2 login success. Principal is CustomUserDetails. Username from DB: {}", usernameToUseInToken);
+        } else {
+            String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+            logger.warn("OAuth2 login success. Principal is type: {}. Manually processing user with UserService.", oauth2User.getClass().getName());
+
+            User userEntity = userService.processOAuth2User(registrationId, oauth2User); // Gọi lại processOAuth2User
+            if (userEntity == null) {
+                logger.error("Failed to process OAuth2 user via UserService in SuccessHandler for email: {}", String.valueOf(oauth2User.getAttribute("email")));
+                String errorUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri + "/oauth2/redirect").queryParam("error", "UserProcessingError").build().toUriString();
+                getRedirectStrategy().sendRedirect(request, response, errorUrl);
+                return;
+            }
+            usernameToUseInToken = userEntity.getUsername();
+            logger.info("Manually processed user. Username from DB for token: {}", usernameToUseInToken);
         }
 
-        if (username == null || username.isBlank()) {
-            logger.error("Cannot extract username from principal: {}", principal);
-            String errorUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri).queryParam("error", "LoginFailed").build().toUriString();
+        if (usernameToUseInToken == null || usernameToUseInToken.isBlank()) {
+            logger.error("Cannot extract a valid username for token generation from principal: {}", oauth2User.getName());
+            String errorUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri + "/oauth2/redirect").queryParam("error", "LoginFailed").build().toUriString();
             getRedirectStrategy().sendRedirect(request, response, errorUrl);
             return;
         }
 
-        // Tạo JWT token
-        String jwt = tokenProvider.generateToken(username);
-        logger.info("Generated JWT for OAuth2 user: {}", username);
+        String jwt = tokenProvider.generateToken(usernameToUseInToken);
+        logger.info("Generated JWT for OAuth2 user, token subject: {}", usernameToUseInToken);
 
-        // Tạo URL redirect về Frontend kèm token
         String targetUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri + "/oauth2/redirect")
                 .queryParam("token", jwt)
                 .build().toUriString();
-        logger.info("Token: ", jwt);
+
+        // Sửa dòng log token cho đúng
+        logger.info("Generated token (first 10 chars): {}", jwt != null && jwt.length() > 10 ? jwt.substring(0, 10) + "..." : "null_or_short_token");
+        logger.info("Redirecting OAuth2 user to: {}", targetUrl);
 
         clearAuthenticationAttributes(request);
-        logger.info("Redirecting OAuth2 user to: {}", targetUrl);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }
