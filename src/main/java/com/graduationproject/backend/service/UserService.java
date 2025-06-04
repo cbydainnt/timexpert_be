@@ -34,9 +34,6 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-    public UserService() { // Constructor
-        logger.error("!!!!!!!!!!!!!!!!!!!! UserService CONSTRUCTOR CALLED !!!!!!!!!!!!!!!!!!!!");
-    }
     @Autowired
     private UserRepository userRepository;
 
@@ -144,14 +141,6 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * Thay đổi mật khẩu cho người dùng đã được xác thực.
-     * @param userId ID của người dùng đang thực hiện thay đổi
-     * @param currentPassword Mật khẩu hiện tại (chưa mã hóa) để xác thực
-     * @param newPassword Mật khẩu mới (chưa mã hóa)
-     * @throws ResourceNotFoundException nếu không tìm thấy user
-     * @throws BadRequestException nếu mật khẩu hiện tại không đúng
-     */
     @Transactional // Quan trọng: Đảm bảo toàn vẹn dữ liệu
     public void changePassword(long userId, String currentPassword, String newPassword) {
         // 1. Tìm người dùng bằng userId
@@ -175,14 +164,6 @@ public class UserService {
         user.setPassword(encodedNewPassword);
     }
 
-    /**
-     * Xử lý thông tin user sau khi đăng nhập thành công qua OAuth2.
-     * Tìm user theo email và provider, nếu chưa có thì tạo mới.
-     *
-     * @param registrationId Id của provider (ví dụ: "google")
-     * @param oauth2User     Thông tin user từ provider
-     * @return User entity (đã tồn tại hoặc mới tạo)
-     */
     @Transactional
     public User processOAuth2User(String registrationId, OAuth2User oauth2User) {
         logger.info("BEGIN processOAuth2User. Registration ID: {}", registrationId);
@@ -272,7 +253,6 @@ public class UserService {
                 user.setLastName(tempUsername); // Hoặc để trống
             }
 
-            // Xử lý mật khẩu (QUAN TRỌNG vì nullable=false)
             // Mật khẩu này không dùng để đăng nhập OAuth2, chỉ để thỏa mãn constraint DB
             String randomPassword = java.util.UUID.randomUUID().toString();
             user.setPassword(passwordEncoder.encode(randomPassword)); // Nên mã hóa nếu có ý định dùng cho việc khác sau này

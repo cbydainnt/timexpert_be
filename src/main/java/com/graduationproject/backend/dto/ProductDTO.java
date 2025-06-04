@@ -25,4 +25,8 @@ public class ProductDTO {
     private int categoryId;
     private String categoryName;
     private Timestamp createdAt;
+    private BigDecimal averageRating;
+    private Integer reviewCount;
+    private boolean visible;
+    private Timestamp updatedAt;
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import jakarta.persistence.*;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -64,6 +65,18 @@ public class Product {
     @CreationTimestamp
     private Timestamp createdAt;
 
+    @Column(name = "average_rating", precision = 3, scale = 2) // Ví dụ: 4.50
+    private BigDecimal averageRating;
+
+    @Column(name = "review_count")
+    private Integer reviewCount;
+
+    @Column(name = "is_visible", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private boolean visible = true;
+
+    @UpdateTimestamp
+    private Timestamp updatedAt;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     @OrderBy("displayOrder ASC, is_primary DESC") // Sắp xếp ảnh theo thứ tự, ảnh chính lên đầu
     @ToString.Exclude
@@ -84,4 +97,6 @@ public class Product {
         // Nếu không có ảnh nào primary, lấy ảnh đầu tiên theo displayOrder
         return images.get(0).getImageUrl();
     }
+
+
 }

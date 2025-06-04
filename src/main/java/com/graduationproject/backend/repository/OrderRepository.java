@@ -16,8 +16,8 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpecificationExecutor<Order> {
     Page<Order> findByUserId(long userId, Pageable pageable);
 
-
-    //new update
+    @Query("SELECT o FROM Order o JOIN o.orderItems oi WHERE o.userId = :userId AND oi.product.productId = :productId AND o.status = 'COMPLETED' ORDER BY o.createdAt DESC")
+    List<Order> findCompletedOrdersByUserAndProduct(@Param("userId") Long userId, @Param("productId") Integer productId);
 
     // Thống kê tổng số đơn hàng theo trạng thái trong một khoảng thời gian
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt BETWEEN :startDate AND :endDate AND o.status = :status")
@@ -37,29 +37,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
     // Thống kê doanh thu theo danh mục trong một khoảng thời gian (chỉ các đơn hoàn thành hoặc đã thanh toán)
     @Query("""
-           SELECT c.name as categoryName, SUM(oi.price * oi.quantity) as categoryRevenue
-           FROM Order o
-           JOIN o.orderItems oi
-           JOIN oi.product p
-           JOIN p.category c
-           WHERE o.createdAt BETWEEN :startDate AND :endDate
-             AND (o.status = 'PAID' OR o.status = 'COMPLETED')
-           GROUP BY c.name
-           ORDER BY categoryRevenue DESC
-           """)
+            SELECT c.name as categoryName, SUM(oi.price * oi.quantity) as categoryRevenue
+            FROM Order o
+            JOIN o.orderItems oi
+            JOIN oi.product p
+            JOIN p.category c
+            WHERE o.createdAt BETWEEN :startDate AND :endDate
+              AND (o.status = 'PAID' OR o.status = 'COMPLETED')
+            GROUP BY c.name
+            ORDER BY categoryRevenue DESC
+            """)
     List<Object[]> sumRevenueByCategory(@Param("startDate") Timestamp startDate, @Param("endDate") Timestamp endDate);
 
     // Thống kê doanh thu theo khách hàng trong một khoảng thời gian (chỉ các đơn hoàn thành hoặc đã thanh toán)
     // Cần fetch tên khách hàng từ bảng User - cần join User
     @Query("""
-           SELECT u.userId as userId, CONCAT(u.firstName, ' ', u.lastName) as customerName, SUM(o.totalAmount) as customerRevenue
-           FROM Order o
-           JOIN User u ON o.userId = u.userId
-           WHERE o.createdAt BETWEEN :startDate AND :endDate
-             AND (o.status = 'PAID' OR o.status = 'COMPLETED')
-           GROUP BY u.userId, customerName
-           ORDER BY customerRevenue DESC
-           """)
+            SELECT u.userId as userId, CONCAT(u.firstName, ' ', u.lastName) as customerName, SUM(o.totalAmount) as customerRevenue
+            FROM Order o
+            JOIN User u ON o.userId = u.userId
+            WHERE o.createdAt BETWEEN :startDate AND :endDate
+              AND (o.status = 'PAID' OR o.status = 'COMPLETED')
+            GROUP BY u.userId, customerName
+            ORDER BY customerRevenue DESC
+            """)
     List<Object[]> sumRevenueByCustomer(@Param("startDate") Timestamp startDate, @Param("endDate") Timestamp endDate);
 
     // Top khách hàng theo số lượng đơn HOÀN THÀNH
@@ -75,13 +75,13 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
     // Top khách hàng theo số lượng đơn BỊ HỦY
     @Query("""
-             SELECT u.userId as userId, CONCAT(u.firstName, ' ', u.lastName) as customerName, COUNT(o) as cancelCount
-             FROM Order o
-             JOIN User u ON o.userId = u.userId
-             WHERE o.status = 'CANCELED'
-             GROUP BY u.userId, customerName
-             ORDER BY cancelCount DESC
-             """)
+            SELECT u.userId as userId, CONCAT(u.firstName, ' ', u.lastName) as customerName, COUNT(o) as cancelCount
+            FROM Order o
+            JOIN User u ON o.userId = u.userId
+            WHERE o.status = 'CANCELED'
+            GROUP BY u.userId, customerName
+            ORDER BY cancelCount DESC
+            """)
     List<Object[]> countCanceledOrdersByCustomer(Pageable pageable); // Dùng Pageable để giới hạn số lượng (Top N)
 
     // Tổng số đơn hàng (cho dashboard)

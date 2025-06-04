@@ -56,6 +56,10 @@ public class ProductService {
         dto.setStrapMaterial(product.getStrapMaterial());
         dto.setDialColor(product.getDialColor());
         dto.setWaterResistance(product.getWaterResistance());
+        dto.setAverageRating(product.getAverageRating());
+        dto.setReviewCount(product.getReviewCount());
+        dto.setVisible(product.isVisible());
+        dto.setUpdatedAt(product.getUpdatedAt());
 
         if (Hibernate.isInitialized(product.getImages()) && product.getImages() != null) {
             dto.setPrimaryImageUrl(product.getPrimaryImageUrl());
@@ -279,15 +283,13 @@ public class ProductService {
         product.setDialColor(productDetails.getDialColor());
         product.setWaterResistance(productDetails.getWaterResistance());
 
-        // TODO: Xử lý cập nhật danh sách ảnh (phức tạp hơn: xóa ảnh cũ không có trong list mới, thêm ảnh mới, cập nhật ảnh chính)
-        // Ví dụ đơn giản (chưa tối ưu): Xóa hết ảnh cũ, thêm ảnh mới
-         product.getImages().clear();
-         if (productDetails.getImages() != null) {
-             productDetails.getImages().forEach(img -> {
-                  img.setProduct(product); // Quan trọng: set lại quan hệ
-                  product.getImages().add(img);
-             });
-         }
+        product.getImages().clear();
+        if (productDetails.getImages() != null) {
+            productDetails.getImages().forEach(img -> {
+                img.setProduct(product); // Quan trọng: set lại quan hệ
+                product.getImages().add(img);
+            });
+        }
 
         Product updatedProduct = productRepository.save(product);
         Hibernate.initialize(updatedProduct.getCategory()); // Đảm bảo load để map DTO
@@ -295,27 +297,29 @@ public class ProductService {
         return mapToDTO(updatedProduct);
     }
 
-    @Transactional
-    public void delete(int id) {
-        Product product = productRepository.findByIdWithCategory(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", id));
-        Hibernate.initialize(product.getImages());
+    //    @Transactional
+//    public void delete(int id) {
+//        Product product = productRepository.findByIdWithCategory(id)
+//                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", id));
+//        Hibernate.initialize(product.getImages());
+//
+//        if (product.getImages() != null && !product.getImages().isEmpty()) {
+//            product.getImages().forEach(image -> fileStorageService.deleteFile(image.getImageUrl()));
+//        }
+//        productRepository.delete(product);
+//    }
 
-        if (product.getImages() != null && !product.getImages().isEmpty()) {
-            product.getImages().forEach(image -> fileStorageService.deleteFile(image.getImageUrl()));
-        }
-        productRepository.delete(product);
+    @Transactional
+    public ProductDTO toggleProductVisibility(int productId) {
+        Product product = findProductEntityById(productId);
+        product.setVisible(!product.isVisible()); // Đảo ngược trạng thái visible
+        // productRepository.save(product); // Không cần thiết nếu findProductEntityById trả về managed entity và method này là @Transactional
+        logger.info("Product ID {} visibility toggled to: {}", productId, product.isVisible());
+        // Cần cập nhật lại ProductReviewService.updateProductAverageRatingAndCount nếu việc ẩn sản phẩm cũng nên ẩn review của nó khỏi tính toán
+        // Hoặc giữ nguyên, tùy logic bạn muốn. Hiện tại updateProductAverageRatingAndCount đã lọc theo review.visible
+        return mapToDTO(product);
     }
 
-//    @Transactional
-//    public void decreaseStock(int productId, int quantity) {
-//        int updatedRows = productRepository.decreaseStock(productId, quantity);
-//        if (updatedRows == 0) {
-//            Product product = findProductEntityById(productId);
-//            throw new OperationFailedException(String.format("Failed to decrease stock for product %d. Available stock: %d, requested: %d",
-//                    productId, product.getStock(), quantity));
-//        }
-//    }
 
     @Transactional
     public void decreaseStock(int productId, int quantity) {
@@ -338,9 +342,62 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Map<Integer, Product> findProductsMapByIds(List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) { return Collections.emptyMap(); }
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
         List<Product> products = productRepository.findAllByIdWithCategory(ids);
         products.forEach(p -> Hibernate.initialize(p.getImages()));
         return products.stream().collect(Collectors.toMap(Product::getProductId, Function.identity()));
     }
+
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> findVisibleProductsByFilter(String name, Integer categoryId,
+                                                        BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        BigDecimal min = (minPrice == null || minPrice.compareTo(BigDecimal.ZERO) < 0) ? BigDecimal.ZERO : minPrice;
+        BigDecimal max = (maxPrice == null || maxPrice.compareTo(BigDecimal.ZERO) < 0) ? new BigDecimal("9999999999.99") : maxPrice;
+        String searchName = (name == null ? "" : name.trim().toLowerCase());
+
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
+            // Hoặc "updatedAt"
+        }
+
+        Page<Product> productPage;
+        if (categoryId == null) {
+            productPage = productRepository.findVisibleByNameContainingIgnoreCaseAndPriceBetween(searchName, min, max, pageable);
+        } else {
+            if (!categoryRepository.existsById(categoryId)) {
+                throw new ResourceNotFoundException("Category", "categoryId", categoryId);
+            }
+            productPage = productRepository.findVisibleByNameContainingIgnoreCaseAndCategoryCategoryIdAndPriceBetween(searchName, categoryId, min, max, pageable);
+        }
+        return mapPageToDTO(productPage);
+    }
+
+    // Hàm này dùng cho ADMIN (lấy tất cả sản phẩm, bao gồm cả visible và hidden)
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> findAllProductsByFilterForAdmin(String name, Integer categoryId,
+                                                            BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        BigDecimal min = (minPrice == null || minPrice.compareTo(BigDecimal.ZERO) < 0) ? BigDecimal.ZERO : minPrice;
+        BigDecimal max = (maxPrice == null || maxPrice.compareTo(BigDecimal.ZERO) < 0) ? new BigDecimal("9999999999.99") : maxPrice;
+        String searchName = (name == null ? "" : name.trim().toLowerCase());
+
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
+        }
+
+        Page<Product> productPage;
+        if (categoryId == null) {
+            // Sử dụng query đã đổi tên trong repository để lấy tất cả (không lọc visible)
+            productPage = productRepository.findAllByNameContainingIgnoreCaseAndPriceBetweenForAdmin(searchName, min, max, pageable);
+        } else {
+            if (!categoryRepository.existsById(categoryId)) {
+                throw new ResourceNotFoundException("Category", "categoryId", categoryId);
+            }
+            productPage = productRepository.findAllByNameContainingIgnoreCaseAndCategoryCategoryIdAndPriceBetweenForAdmin(searchName, categoryId, min, max, pageable);
+        }
+        return mapPageToDTO(productPage);
+    }
+
+
 }

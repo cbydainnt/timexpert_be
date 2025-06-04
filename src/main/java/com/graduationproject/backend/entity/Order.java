@@ -5,6 +5,8 @@ import com.graduationproject.backend.entity.enums.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -55,4 +57,7 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
+
+    @UpdateTimestamp
+    private Timestamp updatedAt;
 }

@@ -46,29 +46,6 @@ public class InvoiceController {
      * Lấy hoặc tạo hóa đơn cho một đơn hàng cụ thể.
      * Chỉ chủ đơn hàng hoặc Admin mới có quyền truy cập.
      */
-//    @GetMapping("/order/{orderId}") // Dùng path này để lấy/tạo hóa đơn theo orderId
-//    public ResponseEntity<Invoice> getOrCreateInvoiceForOrder(@PathVariable int orderId) {
-//        User currentUser = getCurrentAuthenticatedUser();
-//        // Gọi service để lấy hoặc tạo hóa đơn
-//        Invoice invoice = invoiceService.generateOrGetInvoiceForOrder(orderId); // Gọi phương thức mới
-//
-//        // Kiểm tra quyền truy cập (sau khi đã có invoice và thông tin order)
-//        if (invoice.getOrder() == null) {
-//            // Trường hợp hiếm gặp: Service trả về invoice mà không có order?
-//            throw new ResourceNotFoundException("Order information missing in the invoice.");
-//        }
-//
-//        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-//        boolean isOwner = invoice.getOrder().getUserId() == currentUser.getUserId();
-//
-//        if (!isOwner && !isAdmin) {
-//            // Ném lỗi rõ ràng hơn thay vì SecurityException chung chung
-//            throw new AccessDeniedException("You do not have permission to access the invoice for order " + orderId);
-//            // Hoặc return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-//        }
-//
-//        return ResponseEntity.ok(invoice);
-//    }
     @GetMapping("/order/{orderId}")
     // 1. Thay đổi kiểu trả về thành ResponseEntity<InvoiceDetailDTO>
     public ResponseEntity<InvoiceDetailDTO> getOrCreateInvoiceForOrder(@PathVariable int orderId) {
@@ -93,30 +70,5 @@ public class InvoiceController {
 
         return ResponseEntity.ok(invoiceDetailDTO);
     }
-
-    /*
-    // Endpoint này có thể không cần thiết nữa nếu GET /order/{orderId} đã xử lý cả việc lấy hóa đơn cũ
-    // Nếu vẫn muốn giữ, path nên là /order/{orderId}/existing hoặc tương tự
-
-    @GetMapping("/order/{orderId}/existing") // Ví dụ path rõ ràng hơn
-     public ResponseEntity<Invoice> getExistingInvoiceByOrderId(@PathVariable int orderId) {
-          User currentUser = getCurrentAuthenticatedUser();
-          Invoice invoice = invoiceService.getExistingInvoiceByOrderId(orderId); // Gọi service chỉ lấy hóa đơn cũ
-
-          if (invoice == null) {
-               return ResponseEntity.notFound().build();
-          }
-
-          // Kiểm tra quyền
-          boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-          boolean isOwner = invoice.getOrder() != null && invoice.getOrder().getUserId() == currentUser.getUserId();
-
-           if (!isOwner && !isAdmin) {
-               throw new AccessDeniedException("You do not have permission to access the invoice for order " + orderId);
-           }
-
-          return ResponseEntity.ok(invoice);
-     }
-     */
 
 }

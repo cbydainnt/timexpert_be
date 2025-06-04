@@ -15,6 +15,9 @@ import com.graduationproject.backend.repository.CartItemRepository;
 import com.graduationproject.backend.repository.OrderItemRepository;
 import com.graduationproject.backend.repository.OrderRepository;
 import jakarta.persistence.criteria.Predicate;
+import org.hibernate.Hibernate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +31,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     @Autowired
     private CartRepository cartRepository;
@@ -77,6 +82,7 @@ public class OrderService {
         dto.setPaymentMethod(order.getPaymentMethod().name()); // Dùng name()
         dto.setVnpayTransactionId(order.getVnpayTransactionId());
         dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
 
         // Ánh xạ thông tin giao hàng
         dto.setFullNameShipping(order.getFullNameShipping());
@@ -609,5 +615,16 @@ public class OrderService {
         orderPage.getContent().forEach(order -> order.getOrderItems().size());
         // Map Page các entity Order sang Page các DTO OrderDTO
         return orderPage.map(this::mapOrderToDTO);
+    }
+    // ... (các import và @Autowired)
+    @Transactional(readOnly = true)
+    public List<Order> findCompletedOrdersByUserAndProduct(Long userId, Integer productId) {
+        logger.info("Finding completed orders for user ID {} and product ID {}", userId, productId);
+        List<Order> orders = orderRepository.findCompletedOrdersByUserAndProduct(userId, productId);
+        // Quan trọng: Khởi tạo orderItems để tránh LazyInitializationException sau này nếu cần
+        for (Order order : orders) {
+            Hibernate.initialize(order.getOrderItems());
+        }
+        return orders;
     }
 }

@@ -1,6 +1,7 @@
 package com.graduationproject.backend.dto;
 
 import lombok.Data;
+
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.List;
@@ -12,13 +13,14 @@ public class OrderDTO {
     private BigDecimal totalAmount;
     private String status;
     private String paymentMethod;
-    private String vnpayTransactionId; // Giữ lại để tham khảo
+    private String vnpayTransactionId;
     private Timestamp createdAt;
+    private Timestamp updatedAt;
 
     private String fullNameShipping;
     private String phoneShipping;
     private String addressShipping;
     private String notes;
-    private List<OrderItemDTO> orderItems; // Sử dụng OrderItemDTO đã cập nhật
+    private List<OrderItemDTO> orderItems;
 
 }

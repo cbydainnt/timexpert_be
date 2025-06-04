@@ -65,38 +65,33 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/oauth2/**", "/api/oauth2/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/products/**").permitAll()
 
                         .requestMatchers("/api/users/profile").authenticated()
                         .requestMatchers("/api/carts/**").authenticated()
                         .requestMatchers("/api/favorites/**").authenticated()
                         .requestMatchers("/api/orders/**").authenticated()
                         .requestMatchers("/api/invoices/**").authenticated()
-                        // Đảm bảo endpoint này yêu cầu xác thực
                         .requestMatchers("/api/users/profile").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/reviews").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/**").authenticated()
 
                         .requestMatchers("/uploads/images/**").permitAll()
                         .requestMatchers("/api/webhook/dialogflow/**").permitAll() // Endpoint webhook của Dialogflow
 
-                        .requestMatchers(HttpMethod.POST, "/api/products", "/api/categories").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/categories/**").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/categories/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/products/admin", "/api/categories/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products", "/api/categories").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/categories/**", "api/products/admin/toggle-visibility/**", "api/categories/admin/toggle-visibility/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
                         .requestMatchers("/api/statistics/**", "/api/admin/**").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.GET, "/api/admin/reviews","api/review/admin/products/reviews/**", "/api/admin/products/reviews/**", "api/reviews/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/admin/reviews/visibility/**", "/api/categories/admin/toggle-visibility/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/admin/reviews/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
                 )
-//                .oauth2Login(oauth2 -> oauth2
-//                        .userInfoEndpoint(userInfo -> userInfo
-//                                .userService(oAuth2UserService)
-//                        )
-//                        .successHandler(oAuth2AuthenticationSuccessHandler)
-//                )
-//                .oauth2Login(oauth2 -> oauth2
-//                                .userInfoEndpoint(userInfo -> userInfo
-//                                        .userService(oAuth2UserService) // <<< Sử dụng CustomOAuth2UserService
-//                                )
-//                                .successHandler(oAuth2AuthenticationSuccessHandler) // <<< Sử dụng Success Handler tùy chỉnh
-//                        // .failureHandler(...) // Có thể thêm Failure Handler
-//                )
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(auth -> auth.baseUri("/oauth2/authorization"))
                         .redirectionEndpoint(redir -> redir.baseUri("/login/oauth2/code/*"))

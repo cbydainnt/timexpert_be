@@ -57,4 +57,34 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     // Optional: Tìm sản phẩm đầu tiên khớp tên (không phân biệt hoa thường)
     Optional<Product> findFirstByNameContainingIgnoreCase(String name);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category c WHERE p.visible = true AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND p.price BETWEEN :minPrice AND :maxPrice")
+    Page<Product> findVisibleByNameContainingIgnoreCaseAndPriceBetween(
+            @Param("name") String name,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category c WHERE p.visible = true AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND c.categoryId = :categoryId AND p.price BETWEEN :minPrice AND :maxPrice")
+    Page<Product> findVisibleByNameContainingIgnoreCaseAndCategoryCategoryIdAndPriceBetween(
+            @Param("name") String name,
+            @Param("categoryId") int categoryId,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category c WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND p.price BETWEEN :minPrice AND :maxPrice")
+    Page<Product> findAllByNameContainingIgnoreCaseAndPriceBetweenForAdmin(
+                                                                            @Param("name") String name,
+                                                                            @Param("minPrice") BigDecimal minPrice,
+                                                                            @Param("maxPrice") BigDecimal maxPrice,
+                                                                            Pageable pageable);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category c WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) AND c.categoryId = :categoryId AND p.price BETWEEN :minPrice AND :maxPrice")
+    Page<Product> findAllByNameContainingIgnoreCaseAndCategoryCategoryIdAndPriceBetweenForAdmin(
+                                                                                                 @Param("name") String name,
+                                                                                                 @Param("categoryId") int categoryId,
+                                                                                                 @Param("minPrice") BigDecimal minPrice,
+                                                                                                 @Param("maxPrice") BigDecimal maxPrice,
+                                                                                                 Pageable pageable);
 }
